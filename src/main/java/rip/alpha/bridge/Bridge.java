@@ -65,7 +65,7 @@ public class Bridge {
 
         this.pubSubThread = new Thread(() -> {
             try (Jedis client = jedisPool.getResource()) {
-                if (this.password != null){
+                if (this.password != null && !this.password.isEmpty()){
                     client.auth(this.password);
                 }
                 client.subscribe(new BridgePubSub(this), channel);
@@ -133,8 +133,8 @@ public class Bridge {
         }
 
         try (Jedis client = jedisPool.getResource()) {
-            if (this.password != null){
-                client.auth(password);
+            if (this.password != null && !this.password.isEmpty()){
+                client.auth(this.password);
             }
             client.publish(channel, bridgeMessage.toString());
         } catch (Exception e) {
