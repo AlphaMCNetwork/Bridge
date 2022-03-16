@@ -5,10 +5,11 @@ A simple redis pub sub implementation that allows you to send and handle message
 ## How to use
 
 ### <ins>Creating an instance</ins>
+
 ```java
         // Create a jedis pool instance to subscribe with
         JedisPool jedisPool = new JedisPool();
-        Bridge bridge = new Bridge("channel", jedisPool);
+        Bridge bridge = new Bridge("channel", jedisPool, "password");
 ```
 
 ### <ins>Registering Listeners</ins>

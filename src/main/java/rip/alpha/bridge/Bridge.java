@@ -33,7 +33,7 @@ import java.util.Set;
 @Getter
 public class Bridge {
 
-    private final String channel;
+    private final String channel, password;
     private final JedisPool jedisPool;
     private final Map<String, Set<MethodHandle>> listeners;
     private final MethodHandles.Lookup methodLookup;
@@ -42,18 +42,32 @@ public class Bridge {
     private boolean closed = false;
 
     /**
-     * Constructor to initialize bridge
-     * @param channel the channel to listen for
+     * Constructor to initialize bridge without a password
+     * @param channel the channel to listen for.
      * @param jedisPool the jedis pool to subscribe & send messages with.
      */
     public Bridge(String channel, JedisPool jedisPool){
+        this(channel, jedisPool, null);
+    }
+
+    /**
+     * Constructor to initialize bridge
+     * @param channel the channel to listen for.
+     * @param jedisPool the jedis pool to subscribe & send messages with.
+     * @param password the jedis pool password.
+     */
+    public Bridge(String channel, JedisPool jedisPool, String password){
         this.channel = channel;
+        this.password = password;
         this.jedisPool = jedisPool;
         this.listeners = new HashMap<>();
         this.methodLookup = MethodHandles.lookup();
 
         this.pubSubThread = new Thread(() -> {
             try (Jedis client = jedisPool.getResource()) {
+                if (this.password != null){
+                    client.auth(this.password);
+                }
                 client.subscribe(new BridgePubSub(this), channel);
             }
         });
@@ -119,6 +133,9 @@ public class Bridge {
         }
 
         try (Jedis client = jedisPool.getResource()) {
+            if (this.password != null){
+                client.auth(password);
+            }
             client.publish(channel, bridgeMessage.toString());
         } catch (Exception e) {
             e.printStackTrace();
