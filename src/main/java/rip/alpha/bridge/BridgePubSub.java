@@ -59,8 +59,6 @@ public class BridgePubSub extends JedisPubSub {
                 for (MethodHandle method : methods) {
                     method.invoke(document);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             } catch (Throwable e) {
                 e.printStackTrace();
             }
