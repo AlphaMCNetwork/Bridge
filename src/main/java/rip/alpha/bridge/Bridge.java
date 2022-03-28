@@ -17,147 +17,74 @@
 package rip.alpha.bridge;
 
 import lombok.Getter;
-import org.bson.Document;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import org.redisson.Redisson;
+import org.redisson.api.RTopic;
+import org.redisson.api.RedissonClient;
+import org.redisson.api.listener.MessageListener;
+import org.redisson.config.Config;
 
 @Getter
 public class Bridge {
 
-    private final String channel, password;
-    private final JedisPool jedisPool;
-    private final Map<String, Set<MethodHandle>> listeners;
-    private final MethodHandles.Lookup methodLookup;
-    private final Thread pubSubThread;
+    private final String channel;
+    private final RedissonClient redissonClient;
+    private final RTopic redissonTopic;
 
     private boolean closed = false;
 
     /**
-     * Constructor to initialize bridge without a password
-     * @param channel the channel to listen for.
-     * @param jedisPool the jedis pool to subscribe & send messages with.
-     */
-    public Bridge(String channel, JedisPool jedisPool){
-        this(channel, jedisPool, null);
-    }
-
-    /**
      * Constructor to initialize bridge
-     * @param channel the channel to listen for.
-     * @param jedisPool the jedis pool to subscribe & send messages with.
-     * @param password the jedis pool password.
+     *
+     * @param channel        the channel to listen for.
+     * @param config the reddison config to subscribe & send messages with.
      */
-    public Bridge(String channel, JedisPool jedisPool, String password){
+    public Bridge(String channel, Config config) {
         this.channel = channel;
-        this.password = password;
-        this.jedisPool = jedisPool;
-        this.listeners = new HashMap<>();
-        this.methodLookup = MethodHandles.lookup();
-
-        this.pubSubThread = new Thread(() -> {
-            try (Jedis client = jedisPool.getResource()) {
-                if (this.password != null && !this.password.isEmpty()){
-                    client.auth(this.password);
-                }
-                client.subscribe(new BridgePubSub(this), channel);
-            }
-        });
-
-        this.pubSubThread.start();
+        config.setCodec(new BridgeCodec());
+        this.redissonClient = Redisson.create(config);
+        this.redissonTopic = this.redissonClient.getTopic(this.channel);
     }
 
     /**
      * A function to register all the bridge listeners in a class
+     *
      * @param clazz the class to scan for bridge listeners & register.
      */
-    public void registerListener(Class<?> clazz) {
-        for (Method method : clazz.getDeclaredMethods()) {
-            //set the method accessible for private methods
-            method.setAccessible(true);
-
-            //Check if the methods return type is void
-            if (method.getReturnType() != void.class){
-                continue;
-            }
-
-            //Check if the method is static
-            if (!Modifier.isStatic(method.getModifiers())){
-                continue;
-            }
-
-
-            //Check if the method has a parameter
-            if (method.getParameterCount() <= 0){
-                continue;
-            }
-
-            //Check if the parameter is a document
-            if (method.getParameterTypes()[0] != Document.class){
-                continue;
-            }
-
-            BridgeListener bridgeListener = method.getDeclaredAnnotation(BridgeListener.class);
-
-            //Check if the annotation is there
-            if (bridgeListener == null){
-                continue;
-            }
-
-            String messageId = bridgeListener.value();
-            Set<MethodHandle> methods = listeners.computeIfAbsent(messageId, key -> new HashSet<>());
-
-            try {
-                methods.add(this.methodLookup.unreflect(method));
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-        }
+    public <M extends BridgeEvent> void registerListener(Class<M> clazz, MessageListener<? extends M> listener) {
+        this.redissonTopic.addListener(clazz, listener);
     }
 
     /**
      * A function to send a message through the jedis channel for bridge
-     * @param bridgeMessage the bridge message to send
+     *
+     * @param event the bridge message to send
      */
-    public void sendMessage(BridgeMessage bridgeMessage){
-        if (this.closed){
-            throw new IllegalStateException("Attempted to send a message while Bridge was closed.");
+    public <M extends BridgeEvent> void callEvent(M event) {
+        if (this.closed) {
+            throw new IllegalStateException("Attempted to call an event while Bridge was closed.");
         }
 
-        try (Jedis client = jedisPool.getResource()) {
-            if (this.password != null && !this.password.isEmpty()){
-                client.auth(this.password);
-            }
-            client.publish(channel, bridgeMessage.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        this.redissonTopic.publish(event);
     }
 
     /**
      * A function to check if Bridge has been closed
+     *
      * @return a boolean if bridge has been closed.
      */
-    public boolean isClosed(){
+    public boolean isClosed() {
         return this.closed;
     }
 
     /**
      * A function to close the jedis pubsub thread
      */
-    public void close(){
-        if (this.closed){
+    public void close() {
+        if (this.closed) {
             throw new IllegalStateException("Bridge is already closed");
         }
-        this.pubSubThread.stop();
+
         this.closed = true;
+        this.redissonClient.shutdown();
     }
 }

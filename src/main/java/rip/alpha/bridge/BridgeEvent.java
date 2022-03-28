@@ -16,19 +16,6 @@
 
 package rip.alpha.bridge;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface BridgeListener {
-
-    /**
-     * The messageId to listen for
-     * @return the message id.
-     */
-    String value();
+public interface BridgeEvent {
 
 }

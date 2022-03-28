@@ -7,32 +7,38 @@ A simple redis pub sub implementation that allows you to send and handle message
 ### <ins>Creating an instance</ins>
 
 ```java
-        // Create a jedis pool instance to subscribe with
-        JedisPool jedisPool = new JedisPool();
-        Bridge bridge = new Bridge("channel", jedisPool, "password");
+        // Create a redisson config instance to initialize bridge with
+        Config redissonConfig = new Config();
+        redissonConfig.useSingleServer().setAddress("redis://127.0.0.1:6379");
+        Bridge bridge = new Bridge("channel", redissonConfig);
 ```
 
-### <ins>Registering Listeners</ins>
+### <ins>Making events and listeners for events</ins>
 
 ```java
-public class IncomingMessageListener {
-    @BridgeListener("messageId")
-    public static void handleIncomingMessage(Document document){
-        // TODO handle incoming
+@NoArgsConstructor
+@AllArgsConstructor
+public class BridgeTestEvent implements BridgeEvent {
+
+    public int numberId;
+    public String message;
+
+    @Override
+    public String toString(){
+        return numberId + ";" + message;
     }
 }
 ```
 
 ```java
         // Register the incoming channel using the bridge instance
-        this.bridge.registerListener(IncomingMessageListener.class);
+        this.bridge.registerListener(BridgeTestEvent.class, (charSequence, event) -> {
+            System.out.println(event);
+        });
 ```
 
-### <ins>Sending a message</ins>
+### <ins>Calling an event</ins>
 
 ```java
-        Document document = new Document();
-        document.put("data", "test");
-        BridgeMessage bridgeMessage = new BridgeMessage("messageId", document);
-        this.bridge.sendMessage(bridgeMessage);
+         this.bridge.callEvent(new BridgeTestEvent(0, "helloWorld"));
 ```

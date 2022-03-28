@@ -16,18 +16,34 @@
 
 package rip.alpha.bridge;
 
+import com.google.gson.Gson;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufOutputStream;
 import lombok.RequiredArgsConstructor;
-import org.bson.Document;
+import org.redisson.client.protocol.Encoder;
+
+import java.io.IOException;
 
 @RequiredArgsConstructor
-public class BridgeMessage {
+public class BridgeEncoder implements Encoder {
 
-    private final String messageId;
-    private final Document document;
+    private final Gson gson;
 
     @Override
-    public String toString(){
-        return this.messageId + ";" + document.toJson();
+    public ByteBuf encode(Object in) throws IOException {
+        ByteBuf out = ByteBufAllocator.DEFAULT.buffer();
+        try {
+            ByteBufOutputStream os = new ByteBufOutputStream(out);
+            os.writeUTF(gson.toJson(in));
+            os.writeUTF(in.getClass().getName());
+            return os.buffer();
+        } catch (IOException e) {
+            out.release();
+            throw e;
+        } catch (Exception e) {
+            out.release();
+            throw new IOException(e);
+        }
     }
-
 }
