@@ -35,11 +35,25 @@ public class Bridge {
     /**
      * Constructor to initialize bridge
      *
-     * @param channel        the channel to listen for.
-     * @param config the reddison config to subscribe & send messages with.
+     * @param channel the channel to listen for.
+     * @param config  the reddison config to subscribe & send messages with.
      */
     public Bridge(String channel, Config config) {
         this.channel = channel;
+        config.setCodec(new BridgeCodec());
+        this.redissonClient = Redisson.create(config);
+        this.redissonTopic = this.redissonClient.getTopic(this.channel);
+    }
+
+    /**
+     * Constructor to initialize bridge
+     *
+     * @param channel the channel to listen for.
+     */
+    public Bridge(String channel) {
+        this.channel = channel;
+        Config config = new Config();
+        config.useSingleServer().setAddress("redis://127.0.0.1:6379");
         config.setCodec(new BridgeCodec());
         this.redissonClient = Redisson.create(config);
         this.redissonTopic = this.redissonClient.getTopic(this.channel);
@@ -63,7 +77,6 @@ public class Bridge {
         if (this.closed) {
             throw new IllegalStateException("Attempted to call an event while Bridge was closed.");
         }
-
         this.redissonTopic.publish(event);
     }
 
