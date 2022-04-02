@@ -16,7 +16,6 @@
 
 package rip.alpha.bridge;
 
-import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufOutputStream;
@@ -28,14 +27,12 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class BridgeEncoder implements Encoder {
 
-    private final Gson gson;
-
     @Override
     public ByteBuf encode(Object in) throws IOException {
         ByteBuf out = ByteBufAllocator.DEFAULT.buffer();
         try {
             ByteBufOutputStream os = new ByteBufOutputStream(out);
-            os.writeUTF(gson.toJson(in));
+            os.writeUTF(Bridge.getGsonSupplier().get().toJson(in));
             os.writeUTF(in.getClass().getName());
             return os.buffer();
         } catch (IOException e) {

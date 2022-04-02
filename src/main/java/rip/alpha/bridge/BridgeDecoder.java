@@ -16,7 +16,6 @@
 
 package rip.alpha.bridge;
 
-import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class BridgeDecoder implements Decoder<Object> {
 
-    private final Gson gson;
     private final Map<String, Class<?>> classMap = new ConcurrentHashMap<>();
 
     @Override
@@ -38,16 +36,16 @@ public class BridgeDecoder implements Decoder<Object> {
         try (ByteBufInputStream stream = new ByteBufInputStream(buf)) {
             String string = stream.readUTF();
             String type = stream.readUTF();
-            return gson.fromJson(string, getClassFromType(type));
+            return Bridge.getGsonSupplier().get().fromJson(string, this.getClassFromType(type));
         }
     }
 
     public Class<?> getClassFromType(String name) {
-        Class<?> clazz = classMap.get(name);
+        Class<?> clazz = this.classMap.get(name);
         if (clazz == null) {
             try {
                 clazz = Class.forName(name);
-                classMap.put(name, clazz);
+                this.classMap.put(name, clazz);
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }

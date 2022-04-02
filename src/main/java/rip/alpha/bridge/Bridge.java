@@ -16,16 +16,25 @@
 
 package rip.alpha.bridge;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import lombok.Getter;
+import lombok.Setter;
 import org.redisson.Redisson;
 import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.listener.MessageListener;
 import org.redisson.config.Config;
 
+import java.util.function.Supplier;
+
 @Getter
 public class Bridge {
 
+    private static final Gson defaultGson = new GsonBuilder().disableHtmlEscaping().create();
+    @Getter
+    @Setter
+    private static Supplier<Gson> gsonSupplier = () -> defaultGson;
     private final String channel;
     private final RedissonClient redissonClient;
     private final RTopic redissonTopic;

@@ -16,32 +16,30 @@
 
 package rip.alpha.bridge;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.redisson.client.codec.BaseCodec;
 import org.redisson.client.protocol.Decoder;
 import org.redisson.client.protocol.Encoder;
 
 public class BridgeCodec extends BaseCodec {
 
-    private final Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-    private final BridgeEncoder encoder = new BridgeEncoder(gson);
-    private final BridgeDecoder decoder = new BridgeDecoder(gson);
+
+    private final BridgeEncoder encoder = new BridgeEncoder();
+    private final BridgeDecoder decoder = new BridgeDecoder();
 
     @Override
     public Decoder<Object> getValueDecoder() {
-        return decoder;
+        return this.decoder;
     }
 
     @Override
     public Encoder getValueEncoder() {
-        return encoder;
+        return this.encoder;
     }
 
     @Override
     public ClassLoader getClassLoader() {
-        if (gson.getClass().getClassLoader() != null) {
-            return gson.getClass().getClassLoader();
+        if (Bridge.getGsonSupplier().get().getClass().getClassLoader() != null) {
+            return Bridge.getGsonSupplier().get().getClass().getClassLoader();
         }
         return super.getClassLoader();
     }
