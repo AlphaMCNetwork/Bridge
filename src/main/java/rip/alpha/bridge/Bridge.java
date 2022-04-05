@@ -32,9 +32,10 @@ import java.util.function.Supplier;
 public class Bridge {
 
     private static final Gson defaultGson = new GsonBuilder().disableHtmlEscaping().create();
-    @Getter
+
     @Setter
     private static Supplier<Gson> gsonSupplier = () -> defaultGson;
+
     private final String channel;
     private final RedissonClient redissonClient;
     private final RTopic redissonTopic;
@@ -43,28 +44,12 @@ public class Bridge {
 
     /**
      * Constructor to initialize bridge
-     *
-     * @param channel the channel to listen for.
-     * @param config  the reddison config to subscribe & send messages with.
+     * @param channel the channel you would like to register the topic under
+     * @param client the client you would like to fetch the topic from
      */
-    public Bridge(String channel, Config config) {
+    public Bridge(String channel, RedissonClient client) {
         this.channel = channel;
-        config.setCodec(new BridgeCodec());
-        this.redissonClient = Redisson.create(config);
-        this.redissonTopic = this.redissonClient.getTopic(this.channel);
-    }
-
-    /**
-     * Constructor to initialize bridge
-     *
-     * @param channel the channel to listen for.
-     */
-    public Bridge(String channel) {
-        this.channel = channel;
-        Config config = new Config();
-        config.useSingleServer().setAddress("redis://127.0.0.1:6379");
-        config.setCodec(new BridgeCodec());
-        this.redissonClient = Redisson.create(config);
+        this.redissonClient = client;
         this.redissonTopic = this.redissonClient.getTopic(this.channel);
     }
 
