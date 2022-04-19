@@ -20,12 +20,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import lombok.Getter;
 import lombok.Setter;
-import org.redisson.Redisson;
 import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.listener.MessageListener;
-import org.redisson.config.Config;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 @Getter
@@ -38,19 +38,21 @@ public class Bridge {
 
     private final String channel;
     private final RedissonClient redissonClient;
-    private final RTopic redissonTopic;
+    private final String mainTopicName;
+    private final Map<String, RTopic> topicMap = new ConcurrentHashMap<>();
 
     private boolean closed = false;
 
     /**
      * Constructor to initialize bridge
+     *
      * @param channel the channel you would like to register the topic under
-     * @param client the client you would like to fetch the topic from
+     * @param client  the client you would like to fetch the topic from
      */
     public Bridge(String channel, RedissonClient client) {
         this.channel = channel;
         this.redissonClient = client;
-        this.redissonTopic = this.redissonClient.getTopic(this.channel);
+        this.mainTopicName = channel;
     }
 
     /**
@@ -59,7 +61,11 @@ public class Bridge {
      * @param clazz the class to scan for bridge listeners & register.
      */
     public <M extends BridgeEvent> void registerListener(Class<M> clazz, MessageListener<? extends M> listener) {
-        this.redissonTopic.addListener(clazz, listener);
+        this.registerListener(this.mainTopicName, clazz, listener);
+    }
+
+    public <M extends BridgeEvent> void registerListener(String topicName, Class<M> clazz, MessageListener<? extends M> listener) {
+        this.topicMap.computeIfAbsent(topicName, this.redissonClient::getTopic).addListener(clazz, listener);
     }
 
     /**
@@ -68,10 +74,14 @@ public class Bridge {
      * @param event the bridge message to send
      */
     public <M extends BridgeEvent> void callEvent(M event) {
+        this.callEvent(this.mainTopicName, event);
+    }
+
+    public <M extends BridgeEvent> void callEvent(String topicName, M event) {
         if (this.closed) {
             throw new IllegalStateException("Attempted to call an event while Bridge was closed.");
         }
-        this.redissonTopic.publish(event);
+        this.topicMap.computeIfAbsent(topicName, this.redissonClient::getTopic).publish(event);
     }
 
     /**
